@@ -124,6 +124,66 @@ node *findMember(node *grandParent, const string &id)
     }
     return nullptr;
 }
+
+//expell menber
+void expelMember(node* grandParent, const string& id) {
+    node* target = findMember(grandParent, id);
+    if (!target) return;
+
+    // 1. expel the target member
+    target->name = "(đã trục xuất)";
+
+    // 2. add "(mồ côi)" to all children
+    for (node* child = target->child; child != nullptr; child = child->siblingNext) {
+        // only add if not already marked
+        if (child->name.find("(mồ côi)") == string::npos) {
+            child->name += " (mồ côi)";
+        }
+    }
+}
+
+void updateMemberInfo(node* grandParent, const string& id) {
+    node* target = findMember(grandParent, id);
+    if (!target) {
+        cout << "Khong tim thay thanh vien co ID: " << id << endl;
+        return;
+    }
+      // check if expelled
+    if (target->name == "(đã trục xuất)") {
+        cout << "Khong the sua thong tin nguoi da truc xuat.\n";
+        return;
+    }
+
+    string input;
+
+    // update name
+    cout << "Nhap ten moi (Enter de bo qua): ";
+    getline(cin, input);
+    if (!input.empty()) {
+        target->name = input;
+    }
+
+    // update age
+    cout << "Nhap tuoi moi (Enter de bo qua): ";
+    getline(cin, input);
+    if (!input.empty()) {
+        try {
+            target->age = stoi(input);
+        } catch (...) {
+            cout << "Tuoi khong hop le, bo qua.\n";
+        }
+    }
+
+    // update gender
+    cout << "Nhap gioi tinh moi (Enter de bo qua): ";
+    getline(cin, input);
+    if (!input.empty()) {
+        target->gender = input;
+    }
+
+    cout << "Da cap nhat thong tin thanh cong!\n";
+}
+
 // display family tree
 void displayFamilyTree(node *grandParent)
 {
