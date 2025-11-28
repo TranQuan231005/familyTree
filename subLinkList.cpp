@@ -46,40 +46,64 @@ node *createFamilyTree(node *grandParent)
 }
 
 // Add member
+// ===== Helper: Find a node anywhere in the tree by name =====
+node *findRootMember(node *grandParent, const string &name)
+{
+    if (grandParent == nullptr)
+        return nullptr;
+
+    // Match by name
+    if (grandParent->name == name)
+        return grandParent;
+
+    // Search children
+    node *result = findRootMember(grandParent->child, name);
+    if (result != nullptr)
+        return result;
+
+    // Search siblings
+    return findRootMember(grandParent->siblingNext, name);
+}
+
+// ===== Add member at ANY level =====
+string capitalizeName(string s)
+{
+    if (s.empty())
+        return s;
+
+    s[0] = toupper(s[0]);
+    for (int i = 1; i < s.length(); i++)
+        s[i] = tolower(s[i]);
+
+    return s;
+}
 node *addMember(node *grandParent, string id, int age, string name, string gender, string relationTo)
 {
+    // Convert to lowercase for case-insensitive comparison
+    name = capitalizeName(name);
+    relationTo = capitalizeName(relationTo);
+    gender = capitalizeName(gender);
     node *newMember = new node(id, age, name, gender, relationTo);
-    node *parentCurr = grandParent->child;
 
-    if (parentCurr == nullptr)
-    {
-        cout << "No parents found in the family tree.\n";
-        return grandParent;
-    }
-
-    // Find correct parent
-    while (parentCurr != nullptr && parentCurr->name != relationTo)
-    {
-        parentCurr = parentCurr->siblingNext;
-    }
-
+    // -------- 1. Find parent anywhere in the tree --------
+    node *parentCurr = findRootMember(grandParent, relationTo);
     if (parentCurr == nullptr)
     {
         cout << "Parent not found.\n";
         return grandParent;
     }
 
-    // Insert child sorted by age (descending = old → young)
+    // -------- 2. Insert child sorted by age (descending) --------
     node *child = parentCurr->child;
 
-    // Case 1: no children yet
+    // Case 1: no child yet
     if (child == nullptr)
     {
         parentCurr->child = newMember;
         return grandParent;
     }
 
-    // Case 2: insert at head (new older)
+    // Case 2: insert at head
     if (newMember->age > child->age)
     {
         newMember->siblingNext = child;
@@ -125,29 +149,114 @@ node *findMember(node *grandParent, const string &id)
     return nullptr;
 }
 // display family tree
-void displayFamilyTree(node *grandParent)
+void displayFamilyTree(node *Grandparent, int level = 0)
 {
-    if (grandParent == nullptr)
+    if (Grandparent == nullptr)
         return;
 
-    // Display grandparent
-    cout << grandParent->name << " (Id: " << grandParent->id << ", age: " << grandParent->age << ")\n";
-    node *parent = grandParent->child;
-    // Display parents and their children
-    while (parent != nullptr)
+    // Print indent based on level
+    for (int i = 0; i < level; i++)
+        cout << "     ";
+    if (Grandparent->name == "(Deleted)")
     {
-        cout << "  " << parent->name << " (Id: " << parent->id
-             << ", age: " << parent->age << ", gender: " << parent->gender << ")\n";
-
-        node *child = parent->child;
-        while (child != nullptr)
-        {
-            cout << "     " << child->name << " (Id: " << child->id
-                 << ", age: " << child->age << ", gender: " << child->gender << ")\n";
-            child = child->siblingNext;
-        }
-        parent = parent->siblingNext;
+        cout << Grandparent->name << "\n";
     }
+    else
+    {
+        cout << Grandparent->name
+             << " (Id: " << Grandparent->id
+             << ", age: " << Grandparent->age
+             << ", gender: " << Grandparent->gender << ")\n";
+    }
+
+    // Print this member's children (one level deeper)
+    node *child = Grandparent->child;
+    displayFamilyTree(child, level + 1);
+
+    // Print siblings at the same level
+    displayFamilyTree(Grandparent->siblingNext, level);
+}
+
+void deleteMember(node *grandParent, const string &id)
+{
+    node *target = findMember(grandParent, id);
+    if (!target)
+        return;
+
+    // 1. delete the target member
+    target->name = "(Deleted)";
+}
+
+void updateMemberInfo(node *grandParent, const string &id)
+{
+    node *target = findMember(grandParent, id);
+    if (!target)
+    {
+        cout << "Invalid id" << id << endl;
+        return;
+    }
+    // check if deleteled
+    if (target->name == "(Deleted)")
+    {
+        cout << "It's deleted.\n";
+        return;
+    }
+
+    string input;
+
+    // update name
+    cout << "Enter new name (Enter to continue): ";
+    getline(cin, input);
+    if (!input.empty())
+    {
+        target->name = input;
+    }
+
+    // update age
+    cout << "Enter new age (Enter to continue): ";
+    getline(cin, input);
+    if (!input.empty())
+    {
+        try
+        {
+            int newAge = stoi(input); // Try to convert
+
+            // Validation Logic
+            if (newAge < 0)
+            {
+                while (true)
+                {
+                    cout << "Age must be non-negative. Please re-enter Age: ";
+                    cin >> newAge;
+                    cin.ignore();
+
+                    if (newAge >= 0)
+                    {
+                        target->age = newAge;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                target->age = newAge;
+            }
+        }
+        catch (...)
+        { // Catch any error (like user typing "abc")
+            cout << "Invalid number format! Age not updated.\n";
+        }
+    }
+
+    // update gender
+    cout << "Enter new gender (Enter to continue): ";
+    getline(cin, input);
+    if (!input.empty())
+    {
+        target->gender = input;
+    }
+
+    cout << "Update successfully\n";
 }
 
 int main()
@@ -158,9 +267,11 @@ int main()
 
     // User menu
     string option;
-    cout << "1. Add Member\n";
-    cout << "2. Display Family Tree\n";
-    cout << "3. Search Member by ID\n";
+    cout << "Type '1' to Add Member\n";
+    cout << "Type '2' to Search Member by ID\n";
+    cout << "Type '3' to delete Member by ID\n";
+    cout << "Type '4' to Update Member Info by ID\n";
+    cout << "Type '5' to Display Family Tree\n";
     cout << "Type 'exit' to quit.\n\n";
     cout << "==============================\n";
     cout << "Available family tree initialized.\n";
@@ -189,6 +300,20 @@ int main()
             cout << "Enter Age: ";
             cin >> age;
             cin.ignore();
+            // validate age input
+            while (true)
+            {
+                if (age < 0)
+                {
+                    cout << "Age must be non-negative. Please re-enter Age: ";
+                    cin >> age;
+                    cin.ignore();
+                }
+                else
+                {
+                    break;
+                }
+            }
 
             cout << "Enter gender: ";
             getline(cin, gender);
@@ -199,28 +324,50 @@ int main()
             addMember(grandParent, id, age, name, gender, relationTo);
         }
         // Display Family Tree
+
+        // Search Member by ID
         else if (option == "2")
+        {
+            string searchId;
+            cout << "Enter ID to search: ";
+            getline(cin, searchId);
+            node *exist = findMember(grandParent, searchId);
+            if (exist && exist->name != "(Deleted)")
+            {
+                cout << "Member found: " << exist->name << ", Age: " << exist->age << " gender: " << exist->gender << "\n";
+            }
+            else
+            {
+                cout << "Member with ID " << searchId << " not found.\n";
+            }
+        }
+        // delete member
+        else if (option == "3")
+        {
+            string deleteId;
+            cout << "Enter ID to delete: ";
+            getline(cin, deleteId);
+            deleteMember(grandParent, deleteId);
+        }
+        // update member info
+        else if (option == "4")
+        {
+            string updateId;
+            cout << "Enter ID to update: ";
+            getline(cin, updateId);
+            updateMemberInfo(grandParent, updateId);
+        }
+        // Display Family Tree
+        else if (option == "5")
         {
             cout << "==============================\n";
             cout << "Family Tree:\n";
             displayFamilyTree(grandParent);
             cout << "==============================\n";
         }
-        // Search Member by ID
-        else if (option == "3")
+        else
         {
-            string searchId;
-            cout << "Enter  ID to search:";
-            getline(cin, searchId);
-            node *exist = findMember(grandParent, searchId);
-            if (exist)
-            {
-                cout << "Member found: " << exist->name << ", Age: " << exist->age << "\n";
-            }
-            else
-            {
-                cout << "Member with ID " << searchId << " not found.\n";
-            }
+            cout << "Invalid option. Please try again.\n";
         }
     }
     return 0;
