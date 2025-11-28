@@ -83,6 +83,7 @@ node *addMember(node *grandParent, string id, int age, string name, string gende
     name = capitalizeName(name);
     relationTo = capitalizeName(relationTo);
     gender = capitalizeName(gender);
+
     node *newMember = new node(id, age, name, gender, relationTo);
 
     // -------- 1. Find parent anywhere in the tree --------
@@ -184,9 +185,57 @@ void deleteMember(node *grandParent, const string &id)
         return;
 
     // 1. delete the target member
-    target->name = "(Deleted)";
-}
+    if (target->child != nullptr)
+    {
+        target->name = "(Deleted)";
+    }
+    else
+    {
+        // use BFS to find parent of target (traverse tree level by level)
+        queue<node *> q;
+        q.push(grandParent);
 
+        while (!q.empty())
+        {
+            node *curr = q.front();
+            q.pop();
+
+            node *child = curr->child;
+
+            // Case 1: target is the first child
+            if (child == target)
+            {
+                curr->child = target->siblingNext;
+                delete target;
+                cout << "Node deleted successfully\n";
+                return;
+            }
+
+            // Case 2: target is not the first child
+            while (child != nullptr && child->siblingNext != nullptr)
+            {
+                if (child->siblingNext == target)
+                {
+                    child->siblingNext = target->siblingNext;
+                    delete target;
+                    cout << "Node deleted successfully\n";
+                    return;
+                }
+                child = child->siblingNext;
+            }
+
+            // Continue BFS
+            child = curr->child;
+            while (child != nullptr)
+            {
+                q.push(child);
+                child = child->siblingNext;
+            }
+        }
+
+        cout << "Delete failed (parent not found)\n";
+    }
+}
 void updateMemberInfo(node *grandParent, const string &id)
 {
     node *target = findMember(grandParent, id);
