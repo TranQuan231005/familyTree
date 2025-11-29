@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include <queue>
+#include <stack>
 using namespace std;
 
 // create General tree node structure
@@ -46,26 +46,24 @@ node *createFamilyTree(node *grandParent)
 }
 
 // Add member
-// ===== Helper: Find a node anywhere in the tree by name =====
-node *findRootMember(node *grandParent, const string &name)
+node *findRootMember(node *grandParent, const string &parentId)
 {
     if (grandParent == nullptr)
         return nullptr;
 
-    // Match by name
-    if (grandParent->name == name)
+    // Match by id
+    if (grandParent->id == parentId)
         return grandParent;
 
     // Search children
-    node *result = findRootMember(grandParent->child, name);
+    node *result = findRootMember(grandParent->child, parentId);
     if (result != nullptr)
         return result;
 
     // Search siblings
-    return findRootMember(grandParent->siblingNext, name);
+    return findRootMember(grandParent->siblingNext, parentId);
 }
-
-// ===== Add member at ANY level =====
+// Analyze string
 string capitalizeName(string s)
 {
     if (s.empty())
@@ -77,24 +75,23 @@ string capitalizeName(string s)
 
     return s;
 }
-node *addMember(node *grandParent, string id, int age, string name, string gender, string relationTo)
+node *addMember(node *grandParent, string id, int age, string name, string gender, string parentId)
 {
     // Convert to lowercase for case-insensitive comparison
     name = capitalizeName(name);
-    relationTo = capitalizeName(relationTo);
     gender = capitalizeName(gender);
 
-    node *newMember = new node(id, age, name, gender, relationTo);
+    node *newMember = new node(id, age, name, gender, parentId);
 
-    // -------- 1. Find parent anywhere in the tree --------
-    node *parentCurr = findRootMember(grandParent, relationTo);
+    // 1. Find parent anywhere in the tree
+    node *parentCurr = findRootMember(grandParent, parentId);
     if (parentCurr == nullptr)
     {
         cout << "Parent not found.\n";
         return grandParent;
     }
 
-    // -------- 2. Insert child sorted by age (descending) --------
+    //  2. Insert child sorted by age (descending)
     node *child = parentCurr->child;
 
     // Case 1: no child yet
@@ -133,22 +130,26 @@ node *findMember(node *grandParent, const string &id)
 {
     if (!grandParent)
         return nullptr;
-    queue<node *> q;
-    q.push(grandParent);
 
-    while (!q.empty())
+    stack<node *> st;
+    st.push(grandParent);
+
+    while (!st.empty())
     {
-        node *curr = q.front();
-        q.pop();
+        node *curr = st.top();
+        st.pop();
+
         if (curr->id == id)
             return curr;
+
+        // push children directly (order reversed)
         for (node *prev = curr->child; prev != nullptr; prev = prev->siblingNext)
-        {
-            q.push(prev);
-        }
+            st.push(prev);
     }
+
     return nullptr;
 }
+
 // display family tree
 void displayFamilyTree(node *Grandparent, int level = 0)
 {
@@ -184,58 +185,54 @@ void deleteMember(node *grandParent, const string &id)
     if (!target)
         return;
 
-    // 1. delete the target member
+    // Case 1: has children
     if (target->child != nullptr)
     {
         target->name = "(Deleted)";
+        return;
     }
-    else
+
+    // Case 2: no children → find parent using DFS stack
+    stack<node *> st;
+    st.push(grandParent);
+
+    while (!st.empty())
     {
-        // use BFS to find parent of target (traverse tree level by level)
-        queue<node *> q;
-        q.push(grandParent);
+        node *curr = st.top();
+        st.pop();
 
-        while (!q.empty())
+        node *child = curr->child;
+
+        // target is first child
+        if (child == target)
         {
-            node *curr = q.front();
-            q.pop();
+            curr->child = target->siblingNext;
+            delete target;
+            cout << "Node deleted successfully\n";
+            return;
+        }
 
-            node *child = curr->child;
-
-            // Case 1: target is the first child
-            if (child == target)
+        // target is among siblings
+        while (child && child->siblingNext)
+        {
+            if (child->siblingNext == target)
             {
-                curr->child = target->siblingNext;
+                child->siblingNext = target->siblingNext;
                 delete target;
                 cout << "Node deleted successfully\n";
                 return;
             }
-
-            // Case 2: target is not the first child
-            while (child != nullptr && child->siblingNext != nullptr)
-            {
-                if (child->siblingNext == target)
-                {
-                    child->siblingNext = target->siblingNext;
-                    delete target;
-                    cout << "Node deleted successfully\n";
-                    return;
-                }
-                child = child->siblingNext;
-            }
-
-            // Continue BFS
-            child = curr->child;
-            while (child != nullptr)
-            {
-                q.push(child);
-                child = child->siblingNext;
-            }
+            child = child->siblingNext;
         }
 
-        cout << "Delete failed (parent not found)\n";
+        // push deeper nodes into stack
+        for (child = curr->child; child; child = child->siblingNext)
+            st.push(child);
     }
+
+    cout << "Delete failed (parent not found)\n";
 }
+
 void updateMemberInfo(node *grandParent, const string &id)
 {
     node *target = findMember(grandParent, id);
@@ -337,7 +334,7 @@ int main()
         // Add Member
         if (option == "1")
         {
-            string id, name, gender, relationTo, ageStr;
+            string id, name, gender, parentId, ageStr;
             int age;
 
             cout << "Enter ID: ";
@@ -367,10 +364,10 @@ int main()
             cout << "Enter gender: ";
             getline(cin, gender);
 
-            cout << "Enter relation to (parent name): ";
-            getline(cin, relationTo);
+            cout << "Enter relation to (parent id): ";
+            getline(cin, parentId);
 
-            addMember(grandParent, id, age, name, gender, relationTo);
+            addMember(grandParent, id, age, name, gender, parentId);
         }
         // Display Family Tree
 
