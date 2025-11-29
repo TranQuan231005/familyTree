@@ -10,18 +10,18 @@ struct node
     int age;
     string name;
     string gender;
-    string relationTo;
+    string parentId;
     node *siblingNext;
     node *child;
 
     // constructor
-    node(string id, int age, string name, string gender = "", string relationTo = "")
+    node(string id, int age, string name, string gender = "", string parentId = "")
     {
         this->id = id;
         this->age = age;
         this->name = name;
         this->gender = gender;
-        this->relationTo = relationTo;
+        this->parentId = parentId;
         this->siblingNext = nullptr;
         this->child = nullptr;
     }
@@ -289,7 +289,7 @@ void updateMemberInfo(node *grandParent, const string &id)
             }
         }
         catch (...)
-        { // Catch any error (like user typing "abc")
+        { // Catch any error from stoi
             cout << "Invalid number format! Age not updated.\n";
         }
     }
